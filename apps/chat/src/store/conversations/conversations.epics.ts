@@ -2729,7 +2729,7 @@ const callActionEpic: AppEpic = (action$, state$) =>
                     role: Role.Action,
                     action_call: {
                         action_id: payload.actionId,
-                        arguments: JSON.stringify(payload.arguments)
+                        ...(payload.parameters ? { arguments: JSON.stringify(payload.parameters) } : undefined ),
                     },
                 };
 

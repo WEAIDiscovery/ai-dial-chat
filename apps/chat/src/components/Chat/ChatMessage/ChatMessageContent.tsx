@@ -404,7 +404,6 @@ export const ChatMessageContent = ({
       (actionId: string) => {
         dispatch(ConversationsActions.callAction({
           actionId,
-          arguments: ['arg1', 'arg2', 3],
           conversation,
         }))
       },

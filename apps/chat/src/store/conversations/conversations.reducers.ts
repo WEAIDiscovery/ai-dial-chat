@@ -931,7 +931,7 @@ export const conversationsSlice = createSlice({
         _action: PayloadAction<{
           actionId: string;
           conversation: Conversation;
-          arguments?: unknown;
+          parameters?: Record<string, unknown>;
         }>,
     ) => state,
   },
