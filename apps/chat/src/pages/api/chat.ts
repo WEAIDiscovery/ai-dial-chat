@@ -6,6 +6,7 @@ import { validateServerSession } from '@/src/utils/auth/session';
 import { OpenAIStream } from '@/src/utils/server';
 import {
   chatErrorHandler,
+  getMessageActionCall,
   getMessageCustomContent,
   limitMessagesByTokens,
 } from '@/src/utils/server/chat';
@@ -93,6 +94,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     messagesToSend = messagesToSend.map((message) => ({
       ...getMessageCustomContent(message),
+      ...getMessageActionCall(message),
       role: message.role,
       content: message.content,
     }));

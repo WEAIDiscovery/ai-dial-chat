@@ -30,7 +30,7 @@ import { DialFile, DialLink, FileFolderInterface } from '@/src/types/files';
 import { FolderInterface } from '@/src/types/folder';
 import { Translation } from '@/src/types/translation';
 
-import { ConversationsSelectors } from '@/src/store/conversations/conversations.reducers';
+import { ConversationsActions, ConversationsSelectors } from '@/src/store/conversations/conversations.reducers';
 import { FilesActions, FilesSelectors } from '@/src/store/files/files.reducers';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { ModelsSelectors } from '@/src/store/models/models.reducers';
@@ -45,6 +45,7 @@ import {
   MessageUserButtons,
 } from '@/src/components/Chat/ChatMessage/MessageButtons';
 import { MessageAttachments } from '@/src/components/Chat/MessageAttachments';
+import { MessageActions } from '@/src/components/Chat/MessageActions';
 import { MessageStages } from '@/src/components/Chat/MessageStages';
 import { ModelIcon } from '@/src/components/Chatbar/ModelIcon';
 import { ErrorMessage } from '@/src/components/Common/ErrorMessage';
@@ -399,6 +400,17 @@ export const ChatMessageContent = ({
     [dispatch],
   );
 
+  const handleCallAction = useCallback(
+      (actionId: string) => {
+        dispatch(ConversationsActions.callAction({
+          actionId,
+          arguments: ['arg1', 'arg2', 3],
+          conversation,
+        }))
+      },
+      [dispatch, conversation],
+  );
+
   const chatIconSize = isOverlay
     ? OVERLAY_ICON_SIZE
     : isSmallScreen()
@@ -609,6 +621,9 @@ export const ChatMessageContent = ({
                   codeDetection(message.content) && (
                     <div className="text-xxs text-error">{t(codeWarning)}</div>
                   )}
+                {!!message.actions?.length && isLastMessage && (
+                    <MessageActions actions={message.actions} onCallAction={handleCallAction} />
+                )}
                 {!(
                   conversation.isMessageStreaming &&
                   conversation.playback?.isPlayback &&

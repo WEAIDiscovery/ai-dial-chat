@@ -1328,6 +1328,7 @@ const streamMessageEpic: AppEpic = (action$, state$) =>
                 attachments: message.custom_content?.attachments,
               },
             }),
+            ...((message.action_call && message.role === Role.Action) ? { action_call: message.action_call } : undefined),
           })),
         id: payload.conversation.id.toLowerCase(),
         ...modelAdditionalSettings,
@@ -2700,6 +2701,115 @@ const deleteChosenConversationsEpic: AppEpic = (action$, state$) =>
     }),
   );
 
+const callActionEpic: AppEpic = (action$, state$) =>
+    action$.pipe(
+        filter(ConversationsActions.callAction.match),
+        map(({ payload }) => ({
+            payload,
+            modelsMap: ModelsSelectors.selectModelsMap(state$.value),
+            overlaySystemPrompt: OverlaySelectors.selectOverlaySystemPrompt(
+                state$.value,
+            ),
+            isOverlay: SettingsSelectors.selectIsOverlay(state$.value),
+        })),
+        map(
+            ({
+                 payload,
+                 modelsMap,
+                 overlaySystemPrompt,
+                 isOverlay,
+             }) => {
+                const assistantMessage: Message = {
+                    content: '',
+                    role: Role.Assistant,
+                };
+
+                const actionMessage: Message = {
+                    content: '',
+                    role: Role.Action,
+                    action_call: {
+                        action_id: payload.actionId,
+                        arguments: JSON.stringify(payload.arguments)
+                    },
+                };
+
+                let currentMessages = payload.conversation.messages;
+
+                /*
+                  Overlay needs to share host application state information
+                  We storing state information in systemPrompt (message with role: Role.System)
+                */
+                if (isOverlay && overlaySystemPrompt) {
+                    currentMessages = updateSystemPromptInMessages(
+                        currentMessages,
+                        overlaySystemPrompt,
+                    );
+                }
+
+                const updatedMessages = currentMessages.concat(
+                    actionMessage,
+                    assistantMessage,
+                );
+
+                const updatedConversation: Conversation = regenerateConversationId({
+                    ...payload.conversation,
+                    lastActivityDate: Date.now(),
+                    messages: updatedMessages,
+                    name: payload.conversation.name,
+                    isMessageStreaming: true,
+                });
+
+                return {
+                    oldConversationId: payload.conversation.id,
+                    updatedConversation,
+                    modelsMap,
+                    assistantMessage,
+                };
+            },
+        ),
+        switchMap(
+            ({
+                 oldConversationId,
+                 modelsMap,
+                 updatedConversation,
+                 assistantMessage,
+             }) => {
+                return concat(
+                    of(
+                        ConversationsActions.updateConversation({
+                            id: oldConversationId,
+                            values: updatedConversation,
+                        }),
+                    ),
+                    of(
+                        ModelsActions.updateRecentModels({
+                            modelId: updatedConversation.model.id,
+                            rearrange: true,
+                        }),
+                    ),
+                    iif(
+                        () =>
+                            updatedConversation.selectedAddons.length > 0 &&
+                            modelsMap[updatedConversation.model.id]?.type !==
+                            EntityType.Application,
+                        of(
+                            AddonsActions.updateRecentAddons({
+                                addonIds: updatedConversation.selectedAddons,
+                            }),
+                        ),
+                        EMPTY,
+                    ),
+                    of(
+                        ConversationsActions.streamMessage({
+                            conversation: updatedConversation,
+                            message: assistantMessage,
+                        }),
+                    ),
+                );
+            },
+        ),
+    );
+
 export const ConversationsEpics = combineEpics(
   // init
   initEpic,
@@ -2761,4 +2871,6 @@ export const ConversationsEpics = combineEpics(
   getCustomAttachmentDataEpic,
 
   deleteChosenConversationsEpic,
+
+  callActionEpic
 );

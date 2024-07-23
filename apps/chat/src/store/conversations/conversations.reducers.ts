@@ -20,6 +20,7 @@ import {
 import { translate } from '@/src/utils/app/translation';
 
 import {
+  ActionCall,
   Conversation,
   ConversationInfo,
   LikeState,
@@ -925,6 +926,14 @@ export const conversationsSlice = createSlice({
       }
     },
     deleteChosenConversations: (state) => state,
+    callAction: (
+        state,
+        _action: PayloadAction<{
+          actionId: string;
+          conversation: Conversation;
+          arguments?: unknown;
+        }>,
+    ) => state,
   },
 });
 

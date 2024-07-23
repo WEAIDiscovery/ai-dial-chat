@@ -103,6 +103,17 @@ export const mergeMessages = (
         newSource.custom_content.state = newData.custom_content.state;
       }
     }
+
+    if (newData.actions) {
+      if (!newSource.actions) {
+        newSource.actions = [];
+      }
+
+      newSource.actions =
+          newSource.actions.concat(
+              newData.actions,
+          );
+    }
   });
   return newSource;
 };

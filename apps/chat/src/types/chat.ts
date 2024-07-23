@@ -33,6 +33,27 @@ export interface Stage {
   status: StageStatus;
 }
 
+export interface ActionParameters {
+  type: string;
+  description?: string;
+  default?: any;
+  value?: any;
+}
+
+export interface Action<TParameters extends Record<string, ActionParameters> = NonNullable<unknown>> {
+  actionId: string;
+  name: string;
+  required?: (Partial<keyof TParameters>)[];
+  label?: string;
+  description?: string;
+  parameters?: TParameters;
+}
+
+export interface ActionCall {
+  action_id: string;
+  arguments?: string;
+}
+
 export interface MessageSettings {
   prompt: string;
   temperature: number;
@@ -56,12 +77,15 @@ export interface Message {
   settings?: MessageSettings;
   responseId?: string;
   templateMapping?: Record<string, string>;
+  actions?: Action[];
+  action_call?: ActionCall
 }
 
 export enum Role {
   Assistant = 'assistant',
   User = 'user',
   System = 'system',
+  Action = 'action',
 }
 
 export interface ChatBody {

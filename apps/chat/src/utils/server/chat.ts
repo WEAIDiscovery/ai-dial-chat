@@ -116,6 +116,14 @@ export function getMessageCustomContent(
   );
 }
 
+export function getMessageActionCall(
+    message: Message,
+): Partial<Message> | undefined {
+  return (
+      (message.action_call && message.role === Role.Action) ? { action_call: message.action_call } : undefined
+  );
+}
+
 const getResponseBody = (
   fieldName: string,
   displayMessage: string | undefined,
