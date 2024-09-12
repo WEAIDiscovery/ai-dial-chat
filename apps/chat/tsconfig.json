@@ -22,6 +22,7 @@
       "@epam/ai-dial-visualizer-connector": [
         "libs/visualizer-connector/src/index.ts",
       ],
+      "@epam/ai-dial-backend-routes": ["libs/backend-routes/src/index.ts"],
     },
     "baseUrl": "../../",
     "types": [

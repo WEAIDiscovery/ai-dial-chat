@@ -1,0 +1,65 @@
+{
+  "name": "backend-routes",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/backend-routes/src",
+  "projectType": "library",
+  "targets": {
+    "generate-routes": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node libs/backend-routes/tools/generate-routes.cjs"
+      }
+    },
+    "build": {
+      "executor": "@nx/rollup:rollup",
+      "options": {
+        "outputPath": "dist/libs/backend-routes",
+        "main": "libs/backend-routes/src/index.ts",
+        "tsConfig": "libs/backend-routes/tsconfig.lib.json",
+        "project": "libs/backend-routes/package.json",
+        "compiler": "tsc",
+        "format": ["esm"],
+        "assets": [
+          {
+            "glob": "libs/backend-routes/README.md",
+            "input": ".",
+            "output": "."
+          },
+          {
+            "glob": ".gitignore",
+            "input": ".",
+            "output": "."
+          },
+          {
+            "glob": "LICENSE",
+            "input": ".",
+            "output": "."
+          }
+        ]
+      },
+      "dependsOn": ["generate-routes"]
+    },
+    "publish": {
+      "command": "node tools/publish-lib.mjs backend-routes --version={args.ver} --dry={args.dry} --tag={args.tag} --development={args.development}"
+    },
+    "lint": {
+      "options": {
+        "lintFilePatterns": [
+          "libs/backend-routes/**/*.{ts,tsx,js,jsx}",
+          "libs/backend-routes/package.json"
+        ]
+      }
+    },
+    "lint:fix": {
+      "options": {
+        "lintFilePatterns": [
+          "libs/backend-routes/**/*.{ts,tsx,js,jsx}",
+          "libs/backend-routes/package.json"
+        ]
+      }
+    },
+    "format": {},
+    "format:fix": {}
+  },
+  "tags": []
+}

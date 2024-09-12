@@ -23,6 +23,7 @@
       "@epam/ai-dial-chat-visualizer-connector": [
         "libs/chat-visualizer-connector/src/index.ts",
       ],
+      "@epam/ai-dial-backend-routes": ["libs/backend-routes/src/index.ts"],
     },
   },
   "exclude": ["node_modules", "src/**/*.spec.ts", "src/**/*.test.ts"],
