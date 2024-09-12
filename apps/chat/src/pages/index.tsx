@@ -42,7 +42,7 @@ import ShareModal from '../components/Chat/ShareModal';
 import { ImportExportLoader } from '../components/Chatbar/ImportExportLoader';
 import { AnnouncementsBanner } from '../components/Common/AnnouncementBanner';
 import { ReplaceConfirmationModal } from '../components/Common/ReplaceConfirmationModal/ReplaceConfirmationModal';
-import { Chat } from '@/src/components/Chat/Chat';
+import { Chat, Composable__Chat, Composable__ChatView } from '@/src/components/Chat/Chat';
 import { Migration } from '@/src/components/Chat/Migration/Migration';
 import { MigrationFailedWindow } from '@/src/components/Chat/Migration/MigrationFailedModal';
 import { Chatbar } from '@/src/components/Chatbar/Chatbar';
@@ -55,6 +55,8 @@ import packageJSON from '../../../../package.json';
 
 import { Feature } from '@epam/ai-dial-shared';
 import { URL } from 'url';
+import { ComponentBuilder, Inversify } from '@/src/utils/builder';
+import { Composable__Conversations } from '@/src/components/Chatbar/Conversations';
 
 export interface HomeProps {
   initialState: {
@@ -268,6 +270,59 @@ const hiddenFeaturesForIsolatedView = new Set([
   Feature.EmptyChatSettings,
   Feature.TopChatModelSettings,
 ]);
+
+Inversify.resolve(Composable__Chat).bind((component) => {
+  return ComponentBuilder.use(component)
+      .updateHTML((children) => {
+        return <div>Custom CHAT: {children}</div>;
+      })
+      .build();
+});
+
+Inversify.resolve(Composable__ChatView).bind((component) => {
+  return ComponentBuilder.use(component)
+      .updateHTML((children) => {
+        return <div>Custom CHAT VIEW: {children}</div>;
+      })
+      .updateStyles((styles) => ({
+        ...styles,
+        component: {
+          ...styles.component,
+          backgroundColor: 'green',
+          '& > *': {
+            backgroundColor: 'green',
+          }
+        }
+      }))
+      .build();
+});
+
+Inversify.resolve(Composable__Conversations).bind((component) => {
+  return ComponentBuilder.use(component)
+      .updateClassNames((classNames) => ({
+        host: [[classNames.host ?? []].flat().join(' ').trim(), 'my-custom-host-class'],
+        component: [[classNames.component ?? []].flat().join(' ').trim(), 'my-custom-component-class'],
+      }))
+      .updateStyles((styles) => ({
+        ...styles,
+        host: {
+          ...styles.host,
+          backgroundColor: 'yellow',
+          color: 'blue',
+        },
+        component: {
+          ...styles.component,
+          backgroundColor: 'red',
+          '& > *': {
+            backgroundColor: 'green',
+          }
+        }
+      }))
+      .updateHTML((children) => {
+        return <div>Updated: {children}</div>;
+      })
+      .build();
+});
 
 export const getServerSideProps: GetServerSideProps = async ({
   locale,

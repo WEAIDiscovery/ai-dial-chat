@@ -1,12 +1,13 @@
 import {
-  CSSProperties,
   Children,
   DependencyList,
   Dispatch,
   EffectCallback,
   FC,
+  Fragment,
   HTMLAttributes,
   PropsWithChildren,
+  ReactElement,
   ReactNode,
   SetStateAction,
   cloneElement,
@@ -16,6 +17,7 @@ import {
   useEffect,
   useState,
 } from 'react';
+import { Styles, createUseStyles } from 'react-jss';
 
 export const DATA_CUSTOMIZE_ID = 'data-customize-id';
 
@@ -26,8 +28,8 @@ export type CB_StateFn = (
 ) => void;
 
 export interface CB_Styles {
-  host?: CSSProperties;
-  component?: CSSProperties;
+  host?: Styles;
+  component?: Styles;
 }
 export type CB_StylesFn = (state?: CB_State) => CB_Styles;
 
@@ -64,28 +66,21 @@ type ComponentProps<P> =
   P extends FC<infer Props> ? PropsWithChildren<Props> : never;
 
 export class ComponentBuilder<
-  Component,
+  Component extends FC<PropsWithChildren<any>>,
   BlockIds extends string,
   Props extends ComponentProps<Component> = ComponentProps<Component>,
 > {
   private htmlReplacements: Partial<Record<BlockIds, CB_HTMLContentFn>> = {};
 
-  private constructor(component: FC<Props>) {
+  private constructor(component: Component) {
     this.component = component;
   }
 
-  static use<Component, BlockIds extends string = ''>(
-    component: FC<ComponentProps<Component>>,
-  ) {
+  static use<
+    Component extends FC<PropsWithChildren<any>>,
+    BlockIds extends string = '',
+  >(component: Component) {
     return new ComponentBuilder<Component, BlockIds>(component);
-  }
-
-  updateStyles(updateFn: (styles: CB_Styles, state?: CB_State) => CB_Styles) {
-    if (typeof updateFn === 'function') {
-      const prevStylesFn = this.stylesFn;
-      this.stylesFn = (state) => updateFn(prevStylesFn(state), state);
-    }
-    return this;
   }
 
   updateClassNames(
@@ -94,6 +89,14 @@ export class ComponentBuilder<
     if (typeof updateFn === 'function') {
       const prevClassNamesFn = this.classNamesFn;
       this.classNamesFn = (state) => updateFn(prevClassNamesFn(state), state);
+    }
+    return this;
+  }
+
+  updateStyles(updateFn: (css: CB_Styles, state?: CB_State) => CB_Styles) {
+    if (typeof updateFn === 'function') {
+      const prevStylesFn = this.stylesFn;
+      this.stylesFn = (state) => updateFn(prevStylesFn(state), state);
     }
     return this;
   }
@@ -144,54 +147,65 @@ export class ComponentBuilder<
   }
 
   build(options: { reactMemo?: boolean } = {}) {
-    const component = (props: Props) => {
+    const Component = (props: Props) => {
       const [componentState, setComponentState] = useState<CB_State>({});
+      const classNames = this.useClassNames(componentState);
+      const handlers = this.useHandlers(componentState, setComponentState);
+      const css = this.useStyles(componentState, this.component.name);
+      const composeClassNames = (...classNames: (string | string[])[]) =>
+        classNames.flat().join(' ').trim();
+      const composedHostClassNames = composeClassNames(
+        classNames.host ?? [],
+        css.host,
+      );
+      const composedComponentClassNames = composeClassNames(
+        classNames.component ?? [],
+        css.component,
+      );
 
+      const stateFn = this.stateFn;
       useEffect(() => {
         this.stateFn?.(componentState, setComponentState);
-      }, [this.stateFn]);
+      }, [stateFn, componentState]); // TODO: remove 'componentState'?
 
-      this.effectsFn?.(componentState).forEach(({ effect, dependencies }) => {
-        useEffect(effect, dependencies);
-      });
+      this.useEffectsRunner(this.effectsFn, componentState);
 
-      const { host: hostHandlers, component: componentHandlers } =
-        this.handlersFn?.(componentState, setComponentState) ?? {};
-
-      const renderedChildren =
+      const reactElement: ReactElement = (
         typeof this.component === 'function'
           ? this.component({ ...props })
-          : createElement(this.component, { ...props });
+          : createElement(this.component, { ...props })
+      ) as ReactElement;
 
-      const composeClassNames = (classNames: string | string[] = []) => {
-        return (Array.isArray(classNames) ? classNames : [classNames]).join(
-          ' ',
-        );
-      };
+      const renderedChildren = cloneElement(reactElement, {
+        ...reactElement.props,
+        className: composeClassNames(
+          reactElement.props.className,
+          composedComponentClassNames,
+        ),
+      });
+
+      const Wrapper =
+        composedHostClassNames || Object.keys(handlers.host ?? {}).length
+          ? 'div'
+          : Fragment;
 
       return (
-        <div
-          className={composeClassNames(
-            this.classNamesFn?.(componentState)?.host,
-          )}
-          style={this.stylesFn?.(componentState)?.host}
-          {...hostHandlers}
-        >
+        <Wrapper className={composedHostClassNames} {...handlers.host}>
           {this.htmlContentFn?.(
             renderedChildren,
             componentState,
-            componentHandlers,
+            handlers.component,
           ) ?? renderedChildren}
-        </div>
+        </Wrapper>
       );
     };
 
-    return options?.reactMemo ? memo(component) : component;
+    return options?.reactMemo ? memo(Component) : Component;
   }
 
-  private readonly component: FC<Props> = () => null;
+  private readonly component: Component | (() => null) = () => null;
 
-  private stylesFn: CB_StylesFn = () => ({ host: {}, component: {} });
+  private stylesFn: CB_StylesFn = () => ({});
 
   private classNamesFn: CB_ClassNamesFn = () => ({ host: [], component: [] });
 
@@ -205,6 +219,37 @@ export class ComponentBuilder<
   });
 
   private effectsFn: CB_EffectsFn = () => [];
+
+  private useClassNames = (componentState: CB_State) => {
+    return this.classNamesFn?.(componentState) ?? {};
+  };
+
+  private useStyles = (componentState: CB_State, componentName?: string) => {
+    const { host: hostStyles, component: componentStyles } =
+      this.stylesFn?.(componentState) ?? {};
+    const useCreatedStyles = createUseStyles(
+      {
+        host: hostStyles ?? {},
+        component: componentStyles ?? {},
+      },
+      { name: componentName },
+    );
+
+    return useCreatedStyles();
+  };
+
+  private useHandlers = (
+    componentState: CB_State,
+    setComponentState: Dispatch<SetStateAction<CB_State>>,
+  ) => {
+    return this.handlersFn?.(componentState, setComponentState) ?? {};
+  };
+
+  private useEffectsRunner = (effectsFn: CB_EffectsFn, componentState: CB_State) => {
+    effectsFn?.(componentState).forEach(({ effect, dependencies }) => {
+      useEffect(effect, [...dependencies, effect]);
+    });
+  }
 
   private applyHTMLReplacements(
     children: ReactNode | ReactNode[],

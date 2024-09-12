@@ -9,6 +9,7 @@ import { ConversationInfo } from '@/src/types/chat';
 import { Translation } from '@/src/types/translation';
 
 import { ConversationsRenderer } from './ConversationsRenderer';
+import { Inversify } from '@/src/utils/builder';
 
 interface Props {
   conversations: ConversationInfo[];
@@ -43,7 +44,7 @@ const conversationsDateBlocksNames = {
   other: 'Other',
 };
 
-export const Conversations = ({ conversations }: Props) => {
+export const Composable__Conversations = ({ conversations }: Props) => {
   const [sortedConversations, setSortedConversations] =
     useState<SortedConversations>();
 
@@ -153,3 +154,5 @@ export const Conversations = ({ conversations }: Props) => {
     </div>
   );
 };
+
+export const Conversations = Inversify.register(Composable__Conversations);

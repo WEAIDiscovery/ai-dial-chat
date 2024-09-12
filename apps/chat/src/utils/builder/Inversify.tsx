@@ -2,7 +2,9 @@ import { FC, PropsWithChildren } from 'react';
 
 type ComponentProps<P> =
   P extends FC<infer Props> ? PropsWithChildren<Props> : never;
-type OriginalComponent<P = unknown> = FC<P>;
+type OriginalComponent<P extends NonNullable<any> = NonNullable<any>> = FC<
+  PropsWithChildren<P>
+>;
 type ComponentImplementation<OC extends OriginalComponent> = FC<
   ComponentProps<OC>
 >;
@@ -12,18 +14,29 @@ const container = new WeakMap<
   ComponentImplementation<OriginalComponent>
 >();
 
-function resolve<OC extends OriginalComponent>(component: OC) {
+function register<OC extends OriginalComponent>(
+  component: OC,
+): ComponentImplementation<OC> {
+  return resolve(component).render();
+}
+
+function resolve<OC extends OriginalComponent>(
+  component: OC,
+): {
+  instance: () => ComponentImplementation<OC> | undefined;
+  bind: (
+    componentFactory: (component: OC) => ComponentImplementation<OC>,
+  ) => ComponentImplementation<OC>;
+  render: () => ComponentImplementation<OC>;
+} {
   if (!container.has(component)) {
     container.set(component, component);
   }
 
   return {
     instance: () => getInstance(component),
-    bind: (
-      newComponentOrFn:
-        | ComponentImplementation<OriginalComponent>
-        | ((component: OC) => ComponentImplementation<OriginalComponent>),
-    ) => bindImplementation(component, newComponentOrFn),
+    bind: (componentFactory: (component: OC) => ComponentImplementation<OC>) =>
+      bindImplementation(component, componentFactory),
     render: () => renderImplementation(component),
   };
 }
@@ -36,16 +49,10 @@ function getInstance<OC extends OriginalComponent>(
 
 function bindImplementation<OC extends OriginalComponent>(
   component: OC,
-  newComponentOrFn:
-    | ComponentImplementation<OriginalComponent>
-    | ((component: OC) => ComponentImplementation<OriginalComponent>),
-): ComponentImplementation<OriginalComponent> {
-  const newComponent = (
-    typeof newComponentOrFn === 'function'
-      ? newComponentOrFn(component)
-      : newComponentOrFn
-  ) as ComponentImplementation<OriginalComponent>;
-  container.set(component, newComponent);
+  componentFactory: (component: OC) => ComponentImplementation<OC>,
+): ComponentImplementation<OC> {
+  const newComponent = componentFactory(component);
+  container.set(component, newComponent as OC);
 
   return newComponent;
 }
@@ -61,6 +68,7 @@ function renderImplementation<OC extends OriginalComponent>(
 }
 
 export const Inversify = {
+  register,
   resolve,
 };
 
